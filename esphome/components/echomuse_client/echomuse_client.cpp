@@ -357,7 +357,11 @@ void EchoMuseClient::handle_control_(const std::string &payload) {
     mic_requested_ = true;
     if (mic_ != nullptr)
       mic_->start();
-    set_phase_("listening");
+    // EchoMuse uses mic_start for its always-on controller-side wake-word
+    // capture.  It is not the "the user is speaking" state: showing the
+    // inherited PE listening spinner here leaves a white ring rotating at
+    // rest.  Turn visuals come from controller LEDs frames instead.
+    set_phase_("idle");
   } else if (strcmp(type, "mic_stop") == 0) {
     mic_requested_ = false;
     mic_packet_.clear();

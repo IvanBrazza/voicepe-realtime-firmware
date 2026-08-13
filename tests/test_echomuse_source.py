@@ -30,6 +30,12 @@ class CredentialPersistenceTests(unittest.TestCase):
         gate = source[source.index("if (reconnect_requested_"):source.index("connect_control_();")]
         self.assertIn("network::is_connected()", gate)
 
+    def test_continuous_mic_capture_stays_visually_idle(self):
+        source = CPP.read_text()
+        mic_start = source[source.index('strcmp(type, "mic_start")'):source.index('strcmp(type, "mic_stop")')]
+        self.assertIn('set_phase_("idle")', mic_start)
+        self.assertNotIn('set_phase_("listening")', mic_start)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -164,7 +164,9 @@ class EchoMuseClient : public Component {
   std::vector<OnLedsTrigger *> leds_triggers_;
   std::vector<OnVolumeSetTrigger *> volume_triggers_;
   std::vector<OnPhaseTrigger *> phase_triggers_;
-  std::string phase_{"idle"};
+  // Start outside an actual phase so the first controller "idle" state is
+  // emitted to YAML and clears any inherited boot animation.
+  std::string phase_{"boot"};
 };
 
 }  // namespace echomuse_client

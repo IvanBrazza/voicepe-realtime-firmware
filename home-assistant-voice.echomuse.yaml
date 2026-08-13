@@ -48,7 +48,14 @@ echomuse_client:
           id(voice_assistant_phase) = ${voice_assist_listening_for_command_phase_id};
         else if (phase == "replying")
           id(voice_assistant_phase) = ${voice_assist_replying_phase_id};
-    - script.execute: control_leds
+    # EchoMuse supplies the 12-pixel frames. Do not re-run the realtime
+    # package's phase animator here: its "listening" spinner means local mWW
+    # capture, while this variant streams continuously at rest.
+    - if:
+        condition:
+          lambda: 'return phase == "idle";'
+        then:
+          - light.turn_off: voice_assistant_leds
   on_leds:
     - if:
         condition:
