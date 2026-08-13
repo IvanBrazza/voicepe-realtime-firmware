@@ -24,6 +24,12 @@ class CredentialPersistenceTests(unittest.TestCase):
         self.assertIn('std::string(linked_ ? "wss://" : "ws://")', source)
         self.assertNotIn("linked_ = false", source)
 
+    def test_websocket_waits_for_network_before_connecting(self):
+        source = CPP.read_text()
+        self.assertIn('#include "esphome/components/network/util.h"', source)
+        gate = source[source.index("if (reconnect_requested_"):source.index("connect_control_();")]
+        self.assertIn("network::is_connected()", gate)
+
 
 if __name__ == "__main__":
     unittest.main()

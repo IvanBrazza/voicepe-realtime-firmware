@@ -2,6 +2,7 @@
 #include "automation.h"
 
 #include "esphome/components/audio/audio.h"
+#include "esphome/components/network/util.h"
 #include "esphome/core/log.h"
 
 #include <ArduinoJson.h>
@@ -89,6 +90,14 @@ void EchoMuseClient::loop() {
   }
 
   if (reconnect_requested_ && static_cast<int32_t>(millis() - reconnect_at_ms_) >= 0) {
+    // esp_websocket_client_start() may wait for its first TCP connection.
+    // Starting it while ESPHome's Wi-Fi component is still scanning blocks
+    // loopTask long enough for the ESP-IDF task watchdog to reset the PE.
+    // setup priority orders components but does not mean Wi-Fi has an IP yet.
+    if (!network::is_connected()) {
+      reconnect_at_ms_ = millis() + 1000;
+      return;
+    }
     reconnect_requested_ = false;
     disconnect_all_();
     if (!linked_ || wall_clock_valid_()) {
