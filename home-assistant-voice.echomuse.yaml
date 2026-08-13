@@ -10,6 +10,12 @@ substitutions:
   echomuse_firmware_version: "0.1.0"
 
 esphome:
+  # The upstream PE hardware package still brings in its microWakeWord
+  # dependency even though EchoMuse owns wake detection.  TensorFlow Lite
+  # Micro's C++ files are unusually memory-hungry, so Builder/cloud hosts can
+  # OOM when ninja compiles several at once.  One compiler process is slower
+  # but reliably fits in Home Assistant's ESPHome add-on container.
+  compile_process_limit: 1
   project:
     name: "ivanbrazza.voice-pe-echomuse"
     version: ${echomuse_firmware_version}

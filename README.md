@@ -40,6 +40,9 @@ Wake detection and room arbitration run only on the EchoMuse controller.
 Start with [`esphome-builder.echomuse.dhcp.yaml`](esphome-builder.echomuse.dhcp.yaml),
 set `echomuse_host` to the controller's stable hostname or LAN address, and add
 the normal Wi-Fi, API, and OTA secrets before compiling in ESPHome Builder.
+The variant limits compilation to one process so the inherited TensorFlow Lite
+Micro dependency does not exhaust the Builder host's memory; the first build
+is consequently slower than an ordinary ESPHome image.
 Deploy the compatible EchoMuse controller first. Approve the new
 `voice-pe-<mac>` device over plaintext, use **Secure link** in its status page,
 and verify that it reconnects over WSS before enabling mandatory device TLS.
