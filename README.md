@@ -28,6 +28,24 @@ click for updates). To hack on the firmware itself, point the stub's `packages:`
 block at your fork/branch instead. Wake-word models live in
 [`models/`](models/) (previous model kept in `models/previous/` for rollback).
 
+## EchoMuse satellite variant
+
+[`home-assistant-voice.echomuse.yaml`](home-assistant-voice.echomuse.yaml) is a
+separate build variant for an [EchoMuse](https://github.com/wilbowes/EchoMuse)
+fleet. It keeps the PE's native ESPHome API/OTA, XMOS AEC, hardware controls,
+local announcements, Sendspin, mixer, and headphone handling, while replacing
+the realtime backend client with EchoMuse `/control` and `/data` WebSockets.
+Wake detection and room arbitration run only on the EchoMuse controller.
+
+Start with [`esphome-builder.echomuse.dhcp.yaml`](esphome-builder.echomuse.dhcp.yaml),
+set `echomuse_host` to the controller's stable hostname or LAN address, and add
+the normal Wi-Fi, API, and OTA secrets before compiling in ESPHome Builder.
+Deploy the compatible EchoMuse controller first. Approve the new
+`voice-pe-<mac>` device over plaintext, use **Secure link** in its status page,
+and verify that it reconnects over WSS before enabling mandatory device TLS.
+The native PE device and EchoMuse's synthetic Assist satellite intentionally
+appear as two distinct Home Assistant devices.
+
 ---
 *Based on / inspired by xandervanerven's and maxmaxme's Voice PE work and the
 official esphome/home-assistant-voice-pe — with thanks.*

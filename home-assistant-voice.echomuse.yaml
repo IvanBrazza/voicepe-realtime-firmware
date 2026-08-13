@@ -1,0 +1,111 @@
+# Voice Assistant PE hardware with EchoMuse-owned wake/turn handling.
+# The realtime package remains the hardware baseline; this package removes its
+# backend client and replaces it with the two-plane EchoMuse satellite client.
+packages:
+  voice_pe_hardware: !include home-assistant-voice.realtime.yaml
+
+substitutions:
+  echomuse_host: echomuse.local
+  echomuse_port: "8767"
+  echomuse_firmware_version: "0.1.0"
+
+esphome:
+  project:
+    name: "ivanbrazza.voice-pe-echomuse"
+    version: ${echomuse_firmware_version}
+
+external_components:
+  - source:
+      type: git
+      url: https://github.com/IvanBrazza/voicepe-realtime-firmware
+      ref: main
+    components: [echomuse_client]
+    refresh: 0s
+
+# Remove only the OpenAI realtime transport. Its public id is deliberately
+# reused below so the hardware package's status/volume lambdas keep compiling.
+va_client: !remove
+
+echomuse_client:
+  id: va
+  host: ${echomuse_host}
+  port: ${echomuse_port}
+  version: ${echomuse_firmware_version}
+  microphone: i2s_mics
+  mic_channel: 0
+  speaker: media_resampling_speaker
+  on_phase:
+    - lambda: |-
+        if (phase == "idle")
+          id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
+        else if (phase == "listening")
+          id(voice_assistant_phase) = ${voice_assist_listening_for_command_phase_id};
+        else if (phase == "replying")
+          id(voice_assistant_phase) = ${voice_assist_replying_phase_id};
+    - script.execute: control_leds
+  on_leds:
+    - if:
+        condition:
+          switch.is_off: master_mute_switch
+        then:
+          - lambda: |-
+              auto call = id(voice_assistant_leds).turn_on();
+              call.set_brightness(1.0f);
+              call.set_effect("none");
+              call.perform();
+              auto *ring = static_cast<light::AddressableLight *>(
+                  id(voice_assistant_leds).get_output());
+              for (size_t i = 0; i < 12 && i * 3 + 2 < frame.size(); i++) {
+                (*ring)[i] = Color(frame[i * 3], frame[i * 3 + 1], frame[i * 3 + 2]);
+              }
+              ring->schedule_show();
+  on_volume_set:
+    - lambda: |-
+        auto call = id(external_media_player).make_call();
+        if (volume <= 0.0f) {
+          call.set_command(media_player::MEDIA_PLAYER_COMMAND_MUTE);
+        } else {
+          call.set_command(media_player::MEDIA_PLAYER_COMMAND_UNMUTE);
+          call.set_volume(volume);
+        }
+        call.perform();
+
+# Remove the realtime variant's API hook that starts local microWakeWord.
+# The component remains available to inherited timer/local-sound scripts, but
+# its detector never starts in this variant: EchoMuse is the wake authority.
+api:
+  on_client_connected: !remove
+
+media_player:
+  - id: !extend external_media_player
+    # EchoMuse level 0 is a real mute; non-zero commands are mapped by the
+    # client into the PE's safe 0.40–0.92 operating range.
+    volume_min: 0.0
+    on_volume:
+      - lambda: |-
+          id(va).report_volume(id(external_media_player).volume,
+                               id(external_media_player).is_muted());
+    on_mute:
+      - lambda: |-
+          id(va).report_volume(id(external_media_player).volume, true);
+    on_unmute:
+      - lambda: |-
+          id(va).report_volume(id(external_media_player).volume, false);
+
+switch:
+  - id: !extend master_mute_switch
+    on_turn_on:
+      - lambda: id(va).set_muted(true);
+    on_turn_off:
+      - lambda: id(va).set_muted(false);
+
+binary_sensor:
+  - id: !extend center_button
+    on_press:
+      - lambda: id(va).button_down(false);
+    on_release:
+      - lambda: |-
+          const bool local_action = id(factory_reset_requested) ||
+              id(external_media_player).state == media_player::MEDIA_PLAYER_STATE_ANNOUNCING ||
+              id(external_media_player).state == media_player::MEDIA_PLAYER_STATE_PLAYING;
+          id(va).button_up(local_action);
